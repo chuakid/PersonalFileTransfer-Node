@@ -25,8 +25,7 @@ router.get('/file/:file_id', function (req, res, next) {
   db.getFileInfo(req.params.file_id)
     .then((file) => {
       if (!file) {
-        res.status(404).json("File not found"); //Check if file exists
-        return
+        throw { 'code': 404, 'message': "File not found" }
       }
       //Get time to expiry
       let duration = moment.duration(moment(file.expiry).diff(moment()))
@@ -41,7 +40,10 @@ router.get('/file/:file_id', function (req, res, next) {
       })
     })
     .catch((e) => {
-      res.status(500).json("error")
+      if (e.code)
+        res.status(e.code).json(e.message)
+      else
+        res.status(500).json("Server error")
       console.log(e);
     })
 });
@@ -102,7 +104,10 @@ router.get("/file/:file_id/:token", function (req, res, next) {
       res.download(path.join("files", req.params.file_id, req.filename))
     })
     .catch((e) => {
-      res.status(e.code).json(e.message)
+      if (e.code)
+        res.status(e.code).json(e.message)
+      else
+        res.status(500).json("Server error")
     })
 })
 
@@ -127,8 +132,10 @@ router.post("/token/:file_id", express.json(), function (req, res, next) {
       res.json({ "token": token })
     })
     .catch((e) => {
-      console.log(e);
-      res.status(e.code).json(e.message)
+      if (e.code)
+        res.status(e.code).json(e.message)
+      else
+        res.status(500).json("Server error")
     })
 
 })

@@ -79,3 +79,17 @@ exports.removeToken = function (file_id, token) {
             return
         });
 }
+
+exports.getExpiredFiles = function () {
+    return FileModel.find({
+        "expiry": { "$lt": moment() }
+    },
+        projection = { "_id": 1, "filename": 1 }
+    )
+}
+
+exports.purgeExpiredFiles = function () {
+    return FileModel.deleteMany({
+        "expiry": { "$lt": moment() }
+    })
+}

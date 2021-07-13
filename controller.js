@@ -5,7 +5,7 @@ const db = require("./db")
 const path = require("path");
 const moment = require('moment');
 const createHash = require('crypto').createHash;
-
+const { ToadScheduler, SimpleIntervalJob, AsyncTask } = require('toad-scheduler')
 
 let router = express.Router();
 
@@ -114,7 +114,7 @@ router.post("/token/:file_id", express.json(), function (req, res, next) {
       if (!file) {
         throw { "code": 404, "message": "File doesn't exist" }
       }
-      if (req.body.password == null) { //check if password is entered
+      if (req.body.password === null) { //check if password is entered
         throw { "code": 401, "message": "Password required" }
       }
       if (createHash('sha256').update(req.body.password).digest('hex') != file.password) { //check password
@@ -133,7 +133,23 @@ router.post("/token/:file_id", express.json(), function (req, res, next) {
 
 })
 
-
-
+//Purge old files
+function purgeExpiredFiles() {
+  return db.getExpiredFiles()
+    .then((result) => {
+      result.forEach((file) => {
+        fs.rmdirSync(path.join('files', String(file._id)), { recursive: true })
+      })
+    })
+    .then(() => { return db.purgeExpiredFiles() })
+    .then(() => { console.log("Files purged"); })
+    .catch((e) => {
+      console.log(e);
+    })
+}
+const scheduler = new ToadScheduler()
+const task = new AsyncTask('Purge Files', purgeExpiredFiles, (err) => { console.log(err); })
+const job = new SimpleIntervalJob({ seconds: 60, }, task)
+scheduler.addSimpleIntervalJob(job)
 
 module.exports = router;

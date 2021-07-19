@@ -5,7 +5,7 @@ const createHash = require('crypto').createHash
 require('dotenv').config()
 
 mongoose.connect(process.env.db,
-    { useNewUrlParser: true, useUnifiedTopology: true, 'useFindAndModify': false });
+    { useNewUrlParser: true, useUnifiedTopology: true, 'useFindAndModify': false, 'useCreateIndex': true });
 let db = mongoose.connection;
 
 
@@ -91,5 +91,25 @@ exports.getExpiredFiles = function () {
 exports.purgeExpiredFiles = function () {
     return FileModel.deleteMany({
         "expiry": { "$lt": moment() }
+    })
+}
+
+//Site access tokens
+var TokenSchema = new Schema({
+    token: String,
+    createdAt: { type: Date, expires: 3600, default: moment() }
+}, {
+    versionKey: false
+})
+let TokenModel = mongoose.model('tokens', TokenSchema);
+exports.addSiteToken = function (token) {
+    return TokenModel.create({
+        token
+    })
+}
+
+exports.checkSiteToken = function (token) {
+    return TokenModel.find({
+        token
     })
 }

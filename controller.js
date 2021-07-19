@@ -5,7 +5,9 @@ const db = require("./db")
 const path = require("path");
 const moment = require('moment');
 const createHash = require('crypto').createHash;
+const randomBytes = require('crypto').randomBytes;
 const { ToadScheduler, SimpleIntervalJob, AsyncTask } = require('toad-scheduler')
+require('dotenv').config()
 
 let router = express.Router();
 
@@ -20,6 +22,64 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage })
 
+//Check password for site
+router.post("/login", express.json(), function (req, res, next) {
+  if (!req.body.password) {
+    res.status(401).json("Password required")
+    return
+  }
+  if (createHash('sha256').update(req.body.password).digest('hex') === process.env.SITE_PASSWORD) {
+    const token = randomBytes(48).toString("hex");
+    db.addSiteToken(token)
+      .then(() => {
+        res.json({ token })
+      })
+      .catch((e) => {
+        console.log(e);
+        res.status(500).json("Server error")
+      })
+
+  } else {
+    res.status(401).json("Password incorrect")
+  }
+})
+
+//Check site token
+router.post("/sitetokenvalidity", function (req, res, next) {
+  if (!req.get("authorization")) {
+    return res.json({ "validity": false })
+  }
+  db.checkSiteToken(req.get("authorization"))
+    .then((token) => {
+        res.json({"validity": token.length !== 0})
+    })
+    .catch((e) => {
+        res.status(500).json("Server error")
+    })
+})
+
+//Middleware to check password
+function authenticate(req, res, next) {
+  if (!req.get("authorization")) {
+    return res.status(401).json("Token required")
+
+  }
+  db.checkSiteToken(req.get("authorization"))
+    .then((token) => {
+      if (token.length === 0)
+        throw { "code": 401, "message": "Wrong token" }
+      next()
+    })
+    .catch((e) => {
+      if (e.code)
+        res.status(e.code).json(e.message)
+      else
+        res.status(500).json("Server error")
+
+    })
+}
+
+router.use(authenticate)
 //Get file info
 router.get('/file/:file_id', function (req, res, next) {
   db.getFileInfo(req.params.file_id)
@@ -125,7 +185,7 @@ router.post("/token/:file_id", express.json(), function (req, res, next) {
       if (createHash('sha256').update(req.body.password).digest('hex') != file.password) { //check password
         throw { "code": 401, "message": "Password incorrect" }
       }
-      return require('crypto').randomBytes(48).toString('hex');
+      return randomBytes(48).toString('hex');
     })
     .then((token) => { return db.setToken(req.params.file_id, token) }) //set token in database
     .then((token) => {

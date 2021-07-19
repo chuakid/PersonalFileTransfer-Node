@@ -51,13 +51,35 @@ router.post("/sitetokenvalidity", function (req, res, next) {
   }
   db.checkSiteToken(req.get("authorization"))
     .then((token) => {
-        res.json({"validity": token.length !== 0})
+      res.json({ "validity": token.length !== 0 })
     })
     .catch((e) => {
+      res.status(500).json("Server error")
+    })
+})
+//Get file
+router.get("/file/:file_id/:token", function (req, res, next) {
+  db.getFileInfo(req.params.file_id)
+    .then((file) => {
+      if (!file)
+        throw { "code": 404, "message": "File doesn't exist" }
+      //Check token
+      if (!file.tokens.includes(req.params.token))
+        throw { "code": 401, "message": "Token invalid" }
+
+      req.filename = file.filename
+    })
+    .then(db.removeToken(req.params.file_id, req.params.token))
+    .then(() => {
+      res.download(path.join("files", req.params.file_id, req.filename))
+    })
+    .catch((e) => {
+      if (e.code)
+        res.status(e.code).json(e.message)
+      else
         res.status(500).json("Server error")
     })
 })
-
 //Middleware to check password
 function authenticate(req, res, next) {
   if (!req.get("authorization")) {
@@ -147,29 +169,7 @@ router.put("/file", checkUploadFoldersExist, upload.single('file'), function (re
     })
 });
 
-//Get file
-router.get("/file/:file_id/:token", function (req, res, next) {
-  db.getFileInfo(req.params.file_id)
-    .then((file) => {
-      if (!file)
-        throw { "code": 404, "message": "File doesn't exist" }
-      //Check token
-      if (!file.tokens.includes(req.params.token))
-        throw { "code": 401, "message": "Token invalid" }
 
-      req.filename = file.filename
-    })
-    .then(db.removeToken(req.params.file_id, req.params.token))
-    .then(() => {
-      res.download(path.join("files", req.params.file_id, req.filename))
-    })
-    .catch((e) => {
-      if (e.code)
-        res.status(e.code).json(e.message)
-      else
-        res.status(500).json("Server error")
-    })
-})
 
 
 //Get token and check password

@@ -97,14 +97,17 @@ exports.purgeExpiredFiles = function () {
 //Site access tokens
 var TokenSchema = new Schema({
     token: String,
-    createdAt: { type: Date, expires: 3600, default: Date.now }
 }, {
-    versionKey: false
+    versionKey: false,
+    timestamps: true
 })
+TokenSchema.index({ createdAt: 1 }, { expireAfterSeconds: 3600 })
+
 let TokenModel = mongoose.model('tokens', TokenSchema);
+
 exports.addSiteToken = function (token) {
     return TokenModel.create({
-        token
+        token,
     })
 }
 

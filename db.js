@@ -97,7 +97,7 @@ exports.purgeExpiredFiles = function () {
 //Site access tokens
 var TokenSchema = new Schema({
     token: String,
-    createdAt: { type: Date, expires: 3600, default: moment() }
+    createdAt: { type: Date, expires: 3600, default: Date.now }
 }, {
     versionKey: false
 })
